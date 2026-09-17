@@ -5,7 +5,8 @@ A minimal chat UI for talking to a local [Ollama](https://ollama.com) model.
 ## Prerequisites
 
 - [Ollama](https://ollama.com) installed and running locally (`ollama serve`, or just open the app).
-- Node.js 18+
+- Node.js 18+ — if you don't have it yet, run `./install.sh` (macOS) to
+  install Node/npm via Homebrew and then the project's dependencies.
 - At least one model pulled — local or cloud (see below).
 
 ### Using a cloud model
@@ -31,7 +32,16 @@ ollama pull llama3
 
 ## Setup
 
-### One command (macOS)
+### First-time install (macOS)
+
+```bash
+./install.sh
+```
+
+Installs Node.js/npm via Homebrew if they're missing, then runs
+`npm install` for this project. Only needs to be run once.
+
+### One command to run (macOS)
 
 ```bash
 ./start.sh
