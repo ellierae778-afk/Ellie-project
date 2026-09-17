@@ -1,0 +1,17 @@
+{
+  "name": "ellie-project",
+  "version": "0.1.0",
+  "description": "A simple web UI for chatting with a local Ollama model",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

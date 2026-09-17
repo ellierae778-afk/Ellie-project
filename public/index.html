@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ellie — Chat with Ollama</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>Ellie</h1>
+      <div class="model-picker">
+        <label for="model-select">Model</label>
+        <select id="model-select">
+          <option value="">Loading models…</option>
+        </select>
+      </div>
+    </header>
+
+    <main id="chat-log" class="chat-log" aria-live="polite"></main>
+
+    <form id="chat-form" class="chat-form">
+      <textarea
+        id="chat-input"
+        placeholder="Message Ellie…"
+        rows="1"
+        autofocus
+      ></textarea>
+      <button type="submit" id="send-btn">Send</button>
+    </form>
+    <p id="status-line" class="status-line"></p>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
