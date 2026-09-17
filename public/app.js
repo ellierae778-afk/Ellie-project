@@ -33,16 +33,21 @@ async function loadModels() {
 
     modelSelect.innerHTML = '';
     if (!data.length) {
-      modelSelect.innerHTML = '<option value="">No models found — run `ollama pull llama3`</option>';
+      modelSelect.innerHTML =
+        '<option value="">No models found — pull a cloud model, e.g. `ollama pull gpt-oss:120b-cloud`</option>';
       return;
     }
     for (const m of data) {
       const opt = document.createElement('option');
       opt.value = m.name;
-      opt.textContent = m.name;
+      opt.textContent = m.name.includes('-cloud') ? `☁ ${m.name}` : m.name;
       modelSelect.appendChild(opt);
     }
-    setStatus(`Connected to Ollama — ${data.length} model(s) available.`);
+    const cloudCount = data.filter((m) => m.name.includes('-cloud')).length;
+    setStatus(
+      `Connected to Ollama — ${data.length} model(s) available` +
+        (cloudCount ? ` (${cloudCount} cloud).` : '.')
+    );
   } catch (err) {
     modelSelect.innerHTML = '<option value="">Ollama unavailable</option>';
     setStatus(err.message);

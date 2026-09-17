@@ -5,13 +5,29 @@ A minimal chat UI for talking to a local [Ollama](https://ollama.com) model.
 ## Prerequisites
 
 - [Ollama](https://ollama.com) installed and running locally (`ollama serve`, or just open the app).
-- At least one model pulled, e.g.:
-
-  ```bash
-  ollama pull llama3
-  ```
-
 - Node.js 18+
+- At least one model pulled — local or cloud (see below).
+
+### Using a cloud model
+
+Ollama can run models on Ollama's cloud infrastructure while still being
+accessed through your local Ollama the same way as any local model — no code
+changes needed here.
+
+```bash
+ollama signin                       # authenticate with your ollama.com account
+ollama pull gpt-oss:120b-cloud      # or another *-cloud model
+```
+
+Once pulled, the model shows up in this app's model dropdown (marked with a
+☁ icon) and works exactly like a local model — just bigger and hosted
+remotely, so nothing downloads to your machine.
+
+### Using a local model instead
+
+```bash
+ollama pull llama3
+```
 
 ## Setup
 
