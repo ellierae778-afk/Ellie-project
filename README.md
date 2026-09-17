@@ -31,6 +31,18 @@ ollama pull llama3
 
 ## Setup
 
+### One command (macOS)
+
+```bash
+./start.sh
+```
+
+This starts Ollama if it isn't already running, installs dependencies on
+first run, starts the chat server, and opens http://localhost:3000 in your
+browser. Press `Ctrl+C` to stop everything.
+
+### Manual
+
 ```bash
 npm install
 npm start
