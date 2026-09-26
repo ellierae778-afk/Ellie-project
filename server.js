@@ -1,11 +1,21 @@
 import express from 'express';
+import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PERSONA_PATH = path.join(__dirname, 'persona.md');
 
 const PORT = process.env.PORT || 3000;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
+
+function loadSystemPrompt() {
+  try {
+    return fs.readFileSync(PERSONA_PATH, 'utf-8').trim();
+  } catch {
+    return null;
+  }
+}
 
 const app = express();
 app.use(express.json());
@@ -35,11 +45,16 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Request must include "model" and "messages".' });
   }
 
+  const systemPrompt = loadSystemPrompt();
+  const outgoingMessages = systemPrompt
+    ? [{ role: 'system', content: systemPrompt }, ...messages]
+    : messages;
+
   try {
     const ollamaRes = await fetch(`${OLLAMA_HOST}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages, stream: true }),
+      body: JSON.stringify({ model, messages: outgoingMessages, stream: true }),
     });
 
     if (!ollamaRes.ok || !ollamaRes.body) {

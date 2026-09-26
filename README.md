@@ -67,6 +67,14 @@ If your Ollama instance runs elsewhere, set `OLLAMA_HOST`:
 OLLAMA_HOST=http://localhost:11434 npm start
 ```
 
+## Personality
+
+`persona.md` is sent to the model as a system prompt on every message, so
+Ellie's tone stays consistent no matter which model you're talking to. Edit
+that file to change how she talks — no restart needed, it's re-read on every
+request. Delete it (or leave it empty) to talk to the model with no
+personality layer at all.
+
 ## How it works
 
 - `server.js` — a small Express server that serves the frontend and proxies
