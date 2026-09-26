@@ -58,8 +58,9 @@ if ! curl -s -o /dev/null "$OLLAMA_HOST/api/tags"; then
 fi
 echo "Ollama is running at $OLLAMA_HOST"
 
-# 2. Install dependencies if needed
-if [ ! -d node_modules ]; then
+# 2. Install dependencies if needed (also re-run when package.json changed
+# since node_modules was last installed, e.g. after a git pull)
+if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
   echo "Installing dependencies…"
   npm install
 fi
