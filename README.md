@@ -75,11 +75,27 @@ that file to change how she talks — no restart needed, it's re-read on every
 request. Delete it (or leave it empty) to talk to the model with no
 personality layer at all.
 
+## Voice (ElevenLabs)
+
+Ellie can speak her responses out loud using [ElevenLabs](https://elevenlabs.io)
+text-to-speech. Copy `.env.example` to `.env` and fill in:
+
+```
+ELEVENLABS_API_KEY=your-api-key
+ELEVENLABS_VOICE_ID=your-voice-id
+```
+
+`.env` is gitignored — it never gets committed. With both values set, every
+assistant reply is automatically sent to `/api/tts` and played in the
+browser once the text finishes streaming in. Leave them unset and the app
+just runs as a text-only chat.
+
 ## How it works
 
 - `server.js` — a small Express server that serves the frontend and proxies
-  `/api/models` and `/api/chat` to Ollama's REST API, streaming responses
-  back to the browser as they're generated.
+  `/api/models` and `/api/chat` to Ollama's REST API (streaming responses
+  back to the browser as they're generated), plus `/api/tts` to ElevenLabs
+  for voice playback.
 - `public/` — a plain HTML/CSS/JS chat interface (no build step required).
 
 This is intentionally minimal so it's easy to extend — swap the frontend for

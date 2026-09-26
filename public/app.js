@@ -25,6 +25,27 @@ function setBusy(busy) {
   chatInput.disabled = busy;
 }
 
+async function speak(text) {
+  try {
+    const res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || `TTS failed (${res.status})`);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    audio.addEventListener('ended', () => URL.revokeObjectURL(url));
+    await audio.play();
+  } catch (err) {
+    console.error('Voice playback failed:', err.message);
+  }
+}
+
 async function loadModels() {
   try {
     const res = await fetch('/api/models');
@@ -107,6 +128,9 @@ async function sendMessage(text) {
 
     history.push({ role: 'assistant', content: assistantText });
     setStatus('');
+    if (assistantText.trim()) {
+      speak(assistantText);
+    }
   } catch (err) {
     assistantEl.remove();
     addMessage('error', `Error: ${err.message}`);
