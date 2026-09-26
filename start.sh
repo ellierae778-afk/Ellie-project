@@ -6,6 +6,15 @@ set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DIR"
 
+# Make sure Homebrew's tools (node, npm, ollama) are on PATH even if this
+# shell hasn't sourced ~/.zprofile yet.
+for BREW_BIN in /opt/homebrew/bin/brew /usr/local/bin/brew; do
+  if [ -x "$BREW_BIN" ]; then
+    eval "$("$BREW_BIN" shellenv)"
+    break
+  fi
+done
+
 PORT="${PORT:-3000}"
 OLLAMA_HOST="${OLLAMA_HOST:-http://localhost:11434}"
 
