@@ -96,8 +96,16 @@ export const TOOLS = [
         type: 'object',
         properties: {
           summary: { type: 'string', description: 'Event title.' },
-          start: { type: 'string', description: 'ISO 8601 start datetime, e.g. 2026-10-03T15:00:00-07:00.' },
-          end: { type: 'string', description: 'ISO 8601 end datetime.' },
+          start: {
+            type: 'string',
+            description:
+              'ISO 8601 start datetime. Include a UTC offset if known, e.g. 2026-10-03T15:00:00-07:00. If you only know a local time with no offset, also set timeZone.',
+          },
+          end: { type: 'string', description: 'ISO 8601 end datetime, same format as start.' },
+          timeZone: {
+            type: 'string',
+            description: "IANA time zone, e.g. 'America/Los_Angeles'. Use this if start/end have no UTC offset.",
+          },
           description: { type: 'string' },
           location: { type: 'string' },
         },
@@ -123,6 +131,21 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'read_email',
+      description:
+        "Read the full body of one email from the user's Gmail, given its message ID (from search_gmail). Use this before summarizing or answering questions about what an email actually says — search_gmail only gives a short snippet.",
+      parameters: {
+        type: 'object',
+        properties: {
+          id: { type: 'string', description: 'The Gmail message ID.' },
+        },
+        required: ['id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'send_email',
       description: "Send an email from the user's Gmail account.",
       parameters: {
@@ -131,6 +154,7 @@ export const TOOLS = [
           to: { type: 'string', description: 'Recipient email address.' },
           subject: { type: 'string' },
           body: { type: 'string', description: 'Plain text email body.' },
+          cc: { type: 'string', description: 'Optional CC address(es), comma-separated.' },
         },
         required: ['to', 'subject', 'body'],
       },
@@ -140,11 +164,16 @@ export const TOOLS = [
     type: 'function',
     function: {
       name: 'search_drive_files',
-      description: "Search the user's Google Drive by file name.",
+      description:
+        "Search the user's Google Drive. By default matches file names; set searchContent to also match inside document text.",
       parameters: {
         type: 'object',
         properties: {
-          query: { type: 'string', description: 'Text to search for in file names.' },
+          query: { type: 'string', description: 'Text to search for.' },
+          searchContent: {
+            type: 'boolean',
+            description: 'If true, search file contents instead of just file names. Default false.',
+          },
           maxResults: { type: 'integer', description: 'Max files to return. Default 10.' },
         },
         required: ['query'],
@@ -162,6 +191,21 @@ export const TOOLS = [
           fileId: { type: 'string', description: 'The Drive file ID (from search_drive_files).' },
         },
         required: ['fileId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_spreadsheet_tabs',
+      description:
+        'List the tab (sheet) names inside a Google Sheets spreadsheet. Call this before read_sheet_values or write_sheet_values if you don\'t already know the tab name to use in the range.',
+      parameters: {
+        type: 'object',
+        properties: {
+          spreadsheetId: { type: 'string' },
+        },
+        required: ['spreadsheetId'],
       },
     },
   },
@@ -202,13 +246,62 @@ export const TOOLS = [
   },
 ];
 
-function encodeEmail({ to, subject, body }) {
-  const message = [`To: ${to}`, `Subject: ${subject}`, '', body].join('\n');
-  return Buffer.from(message)
+function encodeEmail({ to, subject, body, cc }) {
+  const lines = [`To: ${to}`];
+  if (cc) lines.push(`Cc: ${cc}`);
+  lines.push(`Subject: ${subject}`, '', body);
+  return Buffer.from(lines.join('\n'))
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=+$/, '');
+}
+
+const MAX_EMAIL_BODY_CHARS = 4000;
+
+function stripHtml(html) {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function decodeBase64Url(data) {
+  return Buffer.from(data, 'base64').toString('utf-8');
+}
+
+// Gmail bodies live in a tree of MIME parts. Prefer text/plain, fall back
+// to text/html with tags stripped, and recurse into multipart/* containers.
+function extractEmailBody(payload) {
+  if (!payload) return '';
+
+  if (payload.mimeType === 'text/plain' && payload.body?.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+
+  if (payload.parts) {
+    const plain = payload.parts.find((p) => p.mimeType === 'text/plain' && p.body?.data);
+    if (plain) return decodeBase64Url(plain.body.data);
+
+    for (const part of payload.parts) {
+      const nested = extractEmailBody(part);
+      if (nested) return nested;
+    }
+  }
+
+  if (payload.mimeType === 'text/html' && payload.body?.data) {
+    return stripHtml(decodeBase64Url(payload.body.data));
+  }
+
+  return '';
 }
 
 export async function executeTool(name, args) {
@@ -242,11 +335,38 @@ export async function executeTool(name, args) {
           summary: args.summary,
           description: args.description,
           location: args.location,
-          start: { dateTime: args.start },
-          end: { dateTime: args.end },
+          start: { dateTime: args.start, timeZone: args.timeZone },
+          end: { dateTime: args.end, timeZone: args.timeZone },
         },
       });
       return { id: data.id, htmlLink: data.htmlLink, status: 'created' };
+    }
+
+    case 'read_email': {
+      const gmail = google.gmail({ version: 'v1', auth });
+      const { data: msg } = await gmail.users.messages.get({
+        userId: 'me',
+        id: args.id,
+        format: 'full',
+      });
+      const headers = Object.fromEntries(
+        (msg.payload?.headers || []).map((h) => [h.name, h.value])
+      );
+      let body = extractEmailBody(msg.payload) || msg.snippet || '';
+      let truncated = false;
+      if (body.length > MAX_EMAIL_BODY_CHARS) {
+        body = body.slice(0, MAX_EMAIL_BODY_CHARS);
+        truncated = true;
+      }
+      return {
+        id: args.id,
+        from: headers.From,
+        to: headers.To,
+        subject: headers.Subject,
+        date: headers.Date,
+        body,
+        truncated,
+      };
     }
 
     case 'search_gmail': {
@@ -291,8 +411,9 @@ export async function executeTool(name, args) {
     case 'search_drive_files': {
       const drive = google.drive({ version: 'v3', auth });
       const safeQuery = String(args.query).replace(/'/g, "\\'");
+      const field = args.searchContent ? 'fullText' : 'name';
       const { data } = await drive.files.list({
-        q: `name contains '${safeQuery}' and trashed = false`,
+        q: `${field} contains '${safeQuery}' and trashed = false`,
         pageSize: args.maxResults || 10,
         fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
       });
@@ -326,6 +447,19 @@ export async function executeTool(name, args) {
         return { name: meta.name, content: data };
       }
       return { error: `Unsupported file type for reading: ${meta.mimeType}` };
+    }
+
+    case 'list_spreadsheet_tabs': {
+      const sheets = google.sheets({ version: 'v4', auth });
+      const { data } = await sheets.spreadsheets.get({
+        spreadsheetId: args.spreadsheetId,
+        fields: 'sheets.properties',
+      });
+      return (data.sheets || []).map((s) => ({
+        title: s.properties.title,
+        sheetId: s.properties.sheetId,
+        index: s.properties.index,
+      }));
     }
 
     case 'read_sheet_values': {

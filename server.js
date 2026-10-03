@@ -7,7 +7,7 @@ import * as googleTools from './google.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.join(__dirname, 'persona.md');
-const MAX_TOOL_ITERATIONS = 5;
+const MAX_TOOL_ITERATIONS = 8;
 
 const PORT = process.env.PORT || 3000;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
@@ -128,7 +128,7 @@ app.post('/api/chat', async (req, res) => {
         } catch (toolErr) {
           result = { error: toolErr.message };
         }
-        currentMessages.push({ role: 'tool', content: JSON.stringify(result) });
+        currentMessages.push({ role: 'tool', name: call.function.name, content: JSON.stringify(result) });
       }
     }
 
