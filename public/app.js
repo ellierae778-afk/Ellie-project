@@ -4,8 +4,29 @@ const chatInput = document.getElementById('chat-input');
 const sendBtn = document.getElementById('send-btn');
 const modelSelect = document.getElementById('model-select');
 const statusLine = document.getElementById('status-line');
+const googleStatus = document.getElementById('google-status');
 
 const history = [];
+
+async function loadGoogleStatus() {
+  try {
+    const res = await fetch('/api/google/status');
+    const data = await res.json();
+    if (!data.configured) {
+      googleStatus.className = 'google-status unconfigured';
+      return;
+    }
+    if (data.connected) {
+      googleStatus.textContent = '🟢 Google connected';
+      googleStatus.className = 'google-status connected';
+    } else {
+      googleStatus.textContent = '⚪ Connect Google';
+      googleStatus.className = 'google-status disconnected';
+    }
+  } catch {
+    googleStatus.className = 'google-status unconfigured';
+  }
+}
 
 function addMessage(role, text) {
   const el = document.createElement('div');
@@ -164,3 +185,5 @@ chatInput.addEventListener('input', () => {
 });
 
 loadModels();
+loadGoogleStatus();
+window.addEventListener('focus', loadGoogleStatus);

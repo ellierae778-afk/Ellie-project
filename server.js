@@ -3,9 +3,11 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import * as googleTools from './google.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.join(__dirname, 'persona.md');
+const MAX_TOOL_ITERATIONS = 5;
 
 const PORT = process.env.PORT || 3000;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
@@ -40,7 +42,41 @@ app.get('/api/models', async (req, res) => {
   }
 });
 
-// Stream a chat completion from Ollama
+// Reads one Ollama streamed response, forwarding content chunks to the
+// client as they arrive, and returns the full text plus any tool calls.
+async function streamOllamaResponse(ollamaRes, res) {
+  const reader = ollamaRes.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let content = '';
+  let toolCalls = [];
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const chunk = JSON.parse(line);
+      if (chunk.message?.content) {
+        content += chunk.message.content;
+        res.write(JSON.stringify({ message: { content: chunk.message.content } }) + '\n');
+      }
+      if (chunk.message?.tool_calls?.length) {
+        toolCalls = chunk.message.tool_calls;
+      }
+    }
+  }
+
+  return { content, toolCalls };
+}
+
+// Stream a chat completion from Ollama, running any Google tool calls the
+// model requests in between, and streaming the final answer back live.
 app.post('/api/chat', async (req, res) => {
   const { model, messages } = req.body;
 
@@ -49,28 +85,58 @@ app.post('/api/chat', async (req, res) => {
   }
 
   const systemPrompt = loadSystemPrompt();
-  const outgoingMessages = systemPrompt
+  let currentMessages = systemPrompt
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
 
+  const tools = googleTools.isConnected() ? googleTools.TOOLS : undefined;
+
   try {
-    const ollamaRes = await fetch(`${OLLAMA_HOST}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model, messages: outgoingMessages, stream: true }),
-    });
+    for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
+      const ollamaRes = await fetch(`${OLLAMA_HOST}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages: currentMessages, stream: true, tools }),
+      });
 
-    if (!ollamaRes.ok || !ollamaRes.body) {
-      const text = await ollamaRes.text().catch(() => '');
-      throw new Error(`Ollama responded with ${ollamaRes.status}: ${text}`);
+      if (!ollamaRes.ok || !ollamaRes.body) {
+        const text = await ollamaRes.text().catch(() => '');
+        throw new Error(`Ollama responded with ${ollamaRes.status}: ${text}`);
+      }
+
+      if (!res.headersSent) {
+        res.setHeader('Content-Type', 'application/x-ndjson');
+        res.setHeader('Cache-Control', 'no-cache');
+      }
+
+      const { content, toolCalls } = await streamOllamaResponse(ollamaRes, res);
+
+      if (!toolCalls.length) {
+        res.end();
+        return;
+      }
+
+      currentMessages = [...currentMessages, { role: 'assistant', content, tool_calls: toolCalls }];
+      for (const call of toolCalls) {
+        let result;
+        try {
+          const args =
+            typeof call.function.arguments === 'string'
+              ? JSON.parse(call.function.arguments)
+              : call.function.arguments || {};
+          result = await googleTools.executeTool(call.function.name, args);
+        } catch (toolErr) {
+          result = { error: toolErr.message };
+        }
+        currentMessages.push({ role: 'tool', content: JSON.stringify(result) });
+      }
     }
 
-    res.setHeader('Content-Type', 'application/x-ndjson');
-    res.setHeader('Cache-Control', 'no-cache');
-
-    for await (const chunk of ollamaRes.body) {
-      res.write(chunk);
-    }
+    res.write(
+      JSON.stringify({
+        message: { content: "\n\n(That took more tool calls than I'm willing to sit through. Try rephrasing.)" },
+      }) + '\n'
+    );
     res.end();
   } catch (err) {
     if (!res.headersSent) {
@@ -80,6 +146,28 @@ app.post('/api/chat', async (req, res) => {
     } else {
       res.end();
     }
+  }
+});
+
+// Google OAuth connect flow
+app.get('/api/google/status', (req, res) => {
+  res.json({ configured: googleTools.isConfigured(), connected: googleTools.isConnected() });
+});
+
+app.get('/auth/google', (req, res) => {
+  try {
+    res.redirect(googleTools.getAuthUrl());
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  try {
+    await googleTools.handleOAuthCallback(req.query.code);
+    res.send('<p>Google connected. You can close this tab and go back to Ellie.</p>');
+  } catch (err) {
+    res.status(500).send(`<p>Google auth failed: ${err.message}</p>`);
   }
 });
 

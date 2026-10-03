@@ -90,12 +90,51 @@ assistant reply is automatically sent to `/api/tts` and played in the
 browser once the text finishes streaming in. Leave them unset and the app
 just runs as a text-only chat.
 
+## Google tools (Calendar, Gmail, Drive, Sheets)
+
+Ellie can use your Google account as tools: check/create calendar events,
+search and send Gmail, search/read Drive files, and read/write Google
+Sheets. This only works with models that support tool calling (e.g.
+`gpt-oss:*-cloud`, `llama3.1`, `qwen2.5`) — if the model doesn't support
+tools, it'll just answer from its own knowledge instead.
+
+**1. Set up a Google Cloud OAuth client** (one-time, in [Google Cloud
+Console](https://console.cloud.google.com/)):
+
+- Create or pick a project, then enable these APIs: **Google Calendar API**,
+  **Gmail API**, **Google Drive API**, **Google Sheets API**.
+- Under "OAuth consent screen," add yourself as a test user (the app can
+  stay in "Testing" mode — no Google review needed for personal use).
+- Under "Credentials," create an **OAuth client ID** (type: Web application).
+  Add this exact Authorized redirect URI:
+  `http://localhost:3000/auth/google/callback`
+
+**2. Add the credentials to `.env`:**
+
+```
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
+```
+
+**3. Connect your account:** start the app, then click **Connect Google** in
+the header (or visit http://localhost:3000/auth/google). Google will warn
+that the app is unverified since it's just yours — click through "Advanced
+→ Go to Ellie (unsafe)" to proceed. Tokens are saved to `google-token.json`
+(gitignored, never committed).
+
+Once connected, just ask Ellie things like "what's on my calendar tomorrow"
+or "email John the meeting notes" — she'll call the right tool
+automatically.
+
 ## How it works
 
-- `server.js` — a small Express server that serves the frontend and proxies
-  `/api/models` and `/api/chat` to Ollama's REST API (streaming responses
-  back to the browser as they're generated), plus `/api/tts` to ElevenLabs
-  for voice playback.
+- `server.js` — a small Express server that serves the frontend; proxies
+  `/api/models` and `/api/chat` to Ollama (streaming responses back to the
+  browser, running any Google tool calls in between); proxies `/api/tts` to
+  ElevenLabs for voice playback; and handles the `/auth/google*` OAuth flow.
+- `google.js` — Google tool definitions and the code that executes them
+  against the Calendar, Gmail, Drive, and Sheets APIs.
 - `public/` — a plain HTML/CSS/JS chat interface (no build step required).
 
 This is intentionally minimal so it's easy to extend — swap the frontend for

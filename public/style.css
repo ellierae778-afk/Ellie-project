@@ -52,6 +52,28 @@ body {
   color: var(--text-dim);
 }
 
+.google-status {
+  text-decoration: none;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.google-status.connected {
+  color: #4ade80;
+  border-color: #4ade8044;
+}
+
+.google-status.disconnected {
+  color: var(--text-dim);
+}
+
+.google-status.unconfigured {
+  display: none;
+}
+
 .model-picker select {
   background: var(--surface-2);
   color: var(--text);
