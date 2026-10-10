@@ -42,7 +42,7 @@ if ! curl -s -o /dev/null "$OLLAMA_HOST/api/tags"; then
   fi
 
   echo "Starting Ollama…"
-  ollama serve >/tmp/ollama.log 2>&1 &
+  ollama serve </dev/null >/tmp/ollama.log 2>&1 &
   OLLAMA_PID=$!
   STARTED_OLLAMA=1
 
@@ -65,8 +65,11 @@ if [ ! -d node_modules ] || [ package.json -nt node_modules ]; then
   npm install
 fi
 
-# 3. Start the chat UI
-PORT="$PORT" npm start &
+# 3. Start the chat UI (run node directly, not via `npm start`, so
+# SERVER_PID is the actual server process — killing the npm wrapper on
+# Ctrl+C doesn't reliably kill its child, which can leave a process
+# holding the port and the terminal in a stuck state)
+PORT="$PORT" node server.js </dev/null &
 SERVER_PID=$!
 
 for _ in $(seq 1 30); do
