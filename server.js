@@ -191,6 +191,60 @@ app.get('/auth/google/callback', async (req, res) => {
   }
 });
 
+// Dashboard widgets: read real data directly from the Calendar/Gmail/Weather
+// tool providers, independent of the chat/LLM loop, so the panels stay
+// populated without the user having to ask Nova anything.
+
+app.get('/api/dashboard/schedule', async (req, res) => {
+  if (!googleTools.isConnected()) {
+    return res.json({ connected: false });
+  }
+  try {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const events = await googleTools.executeTool('list_calendar_events', {
+      timeMin: startOfDay.toISOString(),
+      timeMax: endOfDay.toISOString(),
+      maxResults: 10,
+    });
+    res.json({ connected: true, events });
+  } catch (err) {
+    res.status(502).json({ connected: true, error: err.message });
+  }
+});
+
+app.get('/api/dashboard/emails', async (req, res) => {
+  if (!googleTools.isConnected()) {
+    return res.json({ connected: false });
+  }
+  try {
+    const messages = await googleTools.executeTool('search_gmail', {
+      query: 'is:important in:inbox',
+      maxResults: 5,
+    });
+    res.json({ connected: true, messages });
+  } catch (err) {
+    res.status(502).json({ connected: true, error: err.message });
+  }
+});
+
+app.get('/api/dashboard/weather', async (req, res) => {
+  if (!weatherTool.isConfigured()) {
+    return res.json({ configured: false });
+  }
+  const location = req.query.location;
+  if (!location) {
+    return res.status(400).json({ configured: true, error: 'location query param required' });
+  }
+  try {
+    const result = await weatherTool.executeTool('get_weather', { location });
+    res.json({ configured: true, ...result });
+  } catch (err) {
+    res.status(502).json({ configured: true, error: err.message });
+  }
+});
+
 // Convert text to speech via ElevenLabs, streaming audio back to the client
 app.post('/api/tts', async (req, res) => {
   const { text } = req.body;

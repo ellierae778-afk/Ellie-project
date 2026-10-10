@@ -172,6 +172,14 @@ GOOGLE_MAPS_API_KEY=your-api-key
 Restart the app and ask something like "what's the weather in Salida,
 Colorado today" — she'll geocode the place name and pull live conditions.
 
+## Dashboard
+
+The side panels (weather, today's schedule, important emails) show real
+data pulled directly from Calendar/Gmail/Weather on page load — no need to
+ask Nova anything first. Click the weather widget's location text to set
+where it should check (saved in your browser's local storage), and use the
+⟳ button on the schedule/email panels to refresh them on demand.
+
 ## How it works
 
 - `server.js` — a small Express server that serves the frontend; proxies

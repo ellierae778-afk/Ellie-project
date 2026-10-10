@@ -8,7 +8,46 @@ const googleStatus = document.getElementById('google-status');
 const voiceToggleInput = document.getElementById('voice-toggle-input');
 const voiceStatusEl = document.getElementById('voice-status');
 
+const orb = document.getElementById('orb');
+const orbWaves = document.getElementById('orb-waves');
+const orbLabel = document.getElementById('orb-label');
+const liveTranscriptEl = document.getElementById('live-transcript');
+const clockEl = document.getElementById('clock');
+const greetingEl = document.getElementById('greeting');
+const weatherBody = document.getElementById('weather-body');
+const locationEditBtn = document.getElementById('location-edit');
+const scheduleList = document.getElementById('schedule-list');
+const scheduleRefreshBtn = document.getElementById('schedule-refresh');
+const emailsList = document.getElementById('emails-list');
+const emailsRefreshBtn = document.getElementById('emails-refresh');
+
 const history = [];
+
+function setEmpty(el, text) {
+  el.innerHTML = '';
+  const span = document.createElement('span');
+  span.className = 'widget-empty';
+  span.textContent = text;
+  el.appendChild(span);
+}
+
+// --- Orb: the big animated state indicator on the stage ---
+
+function setOrbState(state, label) {
+  orb.className = `orb state-${state}`;
+  if (state === 'listening' || state === 'speaking') {
+    orbWaves.classList.add('active');
+    orbWaves.classList.toggle('fast', state === 'speaking');
+  } else {
+    orbWaves.classList.remove('active', 'fast');
+  }
+  if (label !== undefined) orbLabel.textContent = label;
+}
+
+function setLiveTranscript(text) {
+  liveTranscriptEl.textContent = text;
+  liveTranscriptEl.classList.toggle('active', Boolean(text));
+}
 
 async function loadGoogleStatus() {
   try {
@@ -139,6 +178,7 @@ async function sendMessage(text) {
 
   setBusy(true);
   setStatus('Thinking…');
+  setOrbState('thinking', 'Thinking…');
 
   try {
     const res = await fetch('/api/chat', {
@@ -178,6 +218,7 @@ async function sendMessage(text) {
     history.push({ role: 'assistant', content: assistantText });
     setStatus('');
     if (assistantText.trim() && voiceToggleInput.checked) {
+      setOrbState('speaking', 'Speaking…');
       await speak(assistantText);
     }
   } catch (err) {
@@ -188,6 +229,10 @@ async function sendMessage(text) {
   } finally {
     setBusy(false);
     chatInput.focus();
+    setOrbState(
+      voiceToggleInput.checked ? 'listening' : 'off',
+      voiceToggleInput.checked ? `Listening for "${WAKE_WORD}"` : 'Say "hey nova" to start'
+    );
   }
 }
 
@@ -212,10 +257,6 @@ chatInput.addEventListener('input', () => {
   chatInput.style.height = `${chatInput.scrollHeight}px`;
 });
 
-loadModels();
-loadGoogleStatus();
-window.addEventListener('focus', loadGoogleStatus);
-
 // --- Wake-word voice mode ("hey nova") ---
 //
 // State machine: off -> listening -> (awaiting_command, if the wake word
@@ -236,21 +277,28 @@ function setVoiceStatus(text) {
 function createRecognition() {
   const r = new SpeechRecognitionImpl();
   r.continuous = true;
-  r.interimResults = false;
+  r.interimResults = true;
   r.lang = 'en-US';
 
   r.onresult = (event) => {
+    let interim = '';
     for (let i = event.resultIndex; i < event.results.length; i++) {
       const result = event.results[i];
       if (result.isFinal) {
         handleTranscript(result[0].transcript.trim());
+      } else {
+        interim += result[0].transcript;
       }
+    }
+    if (voiceState === 'listening' || voiceState === 'awaiting_command') {
+      setLiveTranscript(interim);
     }
   };
 
   r.onerror = (event) => {
     if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
       setVoiceStatus('🔇 Mic permission denied');
+      setOrbState('off', 'Mic permission denied');
       voiceState = 'off';
       voiceToggleInput.checked = false;
     }
@@ -275,6 +323,7 @@ function handleTranscript(transcript) {
   if (voiceState === 'awaiting_command') {
     if (!transcript) return;
     voiceState = 'processing';
+    setLiveTranscript('');
     runVoiceCommand(transcript);
     return;
   }
@@ -283,20 +332,27 @@ function handleTranscript(transcript) {
 
   const lower = transcript.toLowerCase();
   const wakeIndex = lower.indexOf(WAKE_WORD);
-  if (wakeIndex === -1) return;
+  if (wakeIndex === -1) {
+    setLiveTranscript('');
+    return;
+  }
 
   const afterWake = transcript.slice(wakeIndex + WAKE_WORD.length).trim();
   if (afterWake) {
     voiceState = 'processing';
+    setLiveTranscript('');
     runVoiceCommand(afterWake);
   } else {
     voiceState = 'awaiting_command';
+    setLiveTranscript('');
     setVoiceStatus('👂 Go ahead…');
+    setOrbState('listening', '👂 Go ahead…');
   }
 }
 
 async function runVoiceCommand(text) {
   setVoiceStatus('💭 Working on it…');
+  setOrbState('thinking', '💭 Working on it…');
   if (recognition) {
     try {
       recognition.stop();
@@ -331,6 +387,7 @@ voiceToggleInput.addEventListener('change', () => {
     recognition = createRecognition();
     voiceState = 'listening';
     setVoiceStatus(`🎤 Listening for "${WAKE_WORD}"`);
+    setOrbState('listening', `Listening for "${WAKE_WORD}"`);
     try {
       recognition.start();
     } catch (err) {
@@ -339,6 +396,8 @@ voiceToggleInput.addEventListener('change', () => {
   } else {
     voiceState = 'off';
     setVoiceStatus('🔇 Voice off');
+    setLiveTranscript('');
+    setOrbState('off', 'Say "hey nova" to start');
     if (recognition) {
       try {
         recognition.stop();
@@ -348,4 +407,212 @@ voiceToggleInput.addEventListener('change', () => {
       recognition = null;
     }
   }
+});
+
+// --- Dashboard widgets: clock, greeting, weather, schedule, emails ---
+// These call lightweight server endpoints that read Calendar/Gmail/Weather
+// directly — independent of the chat/tool-calling loop — so they stay
+// populated with real data without needing to ask Nova anything.
+
+function updateClock() {
+  clockEl.textContent = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function updateGreeting() {
+  const hour = new Date().getHours();
+  const part = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  greetingEl.textContent = `${part} · Always here for you`;
+}
+
+const WEATHER_LOCATION_KEY = 'nova-weather-location';
+
+function getSavedLocation() {
+  try {
+    return localStorage.getItem(WEATHER_LOCATION_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveLocation(loc) {
+  try {
+    localStorage.setItem(WEATHER_LOCATION_KEY, loc);
+  } catch {
+    // Private browsing or storage disabled — fine, just won't persist.
+  }
+}
+
+function extractWeatherFields(conditions) {
+  if (!conditions) return {};
+  const temp = conditions.temperature?.degrees;
+  const unit = conditions.temperature?.unit || 'CELSIUS';
+  const description =
+    conditions.weatherCondition?.description?.text || conditions.weatherCondition?.type || null;
+  return { temp, unit, description };
+}
+
+function renderWeather(data) {
+  const { temp, unit, description } = extractWeatherFields(data.conditions);
+  weatherBody.innerHTML = '';
+  if (typeof temp === 'number') {
+    const tempSpan = document.createElement('span');
+    tempSpan.className = 'temp';
+    const symbol = String(unit).toUpperCase().startsWith('F') ? '°F' : '°C';
+    tempSpan.textContent = `${Math.round(temp)}${symbol}`;
+    weatherBody.appendChild(tempSpan);
+  }
+  if (description) {
+    const condSpan = document.createElement('span');
+    condSpan.className = 'condition';
+    condSpan.textContent = description;
+    weatherBody.appendChild(condSpan);
+  }
+  if (!weatherBody.children.length) {
+    setEmpty(weatherBody, data.location || 'Weather data received');
+  }
+}
+
+async function loadWeather() {
+  const location = getSavedLocation();
+  locationEditBtn.textContent = location || 'Set location';
+  if (!location) {
+    setEmpty(weatherBody, 'Add a location to see the weather');
+    return;
+  }
+  setEmpty(weatherBody, 'Checking the sky…');
+  try {
+    const res = await fetch(`/api/dashboard/weather?location=${encodeURIComponent(location)}`);
+    const data = await res.json();
+    if (!data.configured) {
+      setEmpty(weatherBody, 'Weather not configured yet');
+      return;
+    }
+    if (data.error) throw new Error(data.error);
+    renderWeather(data);
+  } catch {
+    setEmpty(weatherBody, "Couldn't load weather");
+  }
+}
+
+locationEditBtn.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'location-input';
+  input.placeholder = 'City, State';
+  input.value = getSavedLocation();
+  locationEditBtn.replaceWith(input);
+  input.focus();
+  input.select();
+
+  let committed = false;
+  function commit() {
+    if (committed) return;
+    committed = true;
+    saveLocation(input.value.trim());
+    input.replaceWith(locationEditBtn);
+    loadWeather();
+  }
+
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commit();
+    }
+  });
+  input.addEventListener('blur', commit);
+});
+
+function formatEventTime(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+async function loadSchedule() {
+  setEmpty(scheduleList, 'Loading…');
+  try {
+    const res = await fetch('/api/dashboard/schedule');
+    const data = await res.json();
+    if (!data.connected) {
+      setEmpty(scheduleList, "Connect Google to see today's events");
+      return;
+    }
+    if (data.error) throw new Error(data.error);
+    if (!data.events?.length) {
+      setEmpty(scheduleList, 'Nothing on the calendar today');
+      return;
+    }
+    scheduleList.innerHTML = '';
+    for (const ev of data.events) {
+      const li = document.createElement('li');
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'time';
+      timeSpan.textContent = formatEventTime(ev.start);
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'title';
+      titleSpan.textContent = ev.summary || '(untitled)';
+      li.append(timeSpan, titleSpan);
+      scheduleList.appendChild(li);
+    }
+  } catch {
+    setEmpty(scheduleList, "Couldn't load schedule");
+  }
+}
+
+async function loadEmails() {
+  setEmpty(emailsList, 'Loading…');
+  try {
+    const res = await fetch('/api/dashboard/emails');
+    const data = await res.json();
+    if (!data.connected) {
+      setEmpty(emailsList, 'Connect Google to see your inbox');
+      return;
+    }
+    if (data.error) throw new Error(data.error);
+    if (!data.messages?.length) {
+      setEmpty(emailsList, 'Nothing flagged as important');
+      return;
+    }
+    emailsList.innerHTML = '';
+    for (const msg of data.messages) {
+      const li = document.createElement('li');
+      const titleSpan = document.createElement('span');
+      titleSpan.className = 'title';
+      titleSpan.textContent = msg.subject || '(no subject)';
+      const fromSpan = document.createElement('span');
+      fromSpan.className = 'from';
+      fromSpan.textContent = (msg.from || 'Unknown').split('<')[0].trim();
+      li.append(titleSpan, fromSpan);
+      emailsList.appendChild(li);
+    }
+  } catch {
+    setEmpty(emailsList, "Couldn't load emails");
+  }
+}
+
+function wireRefresh(button, loader) {
+  button.addEventListener('click', () => {
+    button.classList.add('spinning');
+    loader().finally(() => button.classList.remove('spinning'));
+  });
+}
+wireRefresh(scheduleRefreshBtn, loadSchedule);
+wireRefresh(emailsRefreshBtn, loadEmails);
+
+updateClock();
+setInterval(updateClock, 15000);
+updateGreeting();
+setOrbState('off', 'Say "hey nova" to start');
+
+loadModels();
+loadGoogleStatus();
+loadWeather();
+loadSchedule();
+loadEmails();
+
+window.addEventListener('focus', () => {
+  loadGoogleStatus();
+  loadSchedule();
+  loadEmails();
 });

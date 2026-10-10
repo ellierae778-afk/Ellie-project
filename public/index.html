@@ -8,9 +8,9 @@
 </head>
 <body>
   <div class="app">
-    <header class="app-header">
-      <h1>Nova</h1>
-      <div class="model-picker">
+    <header class="topbar">
+      <div class="brand">NOVA</div>
+      <div class="topbar-controls">
         <div class="voice-toggle-wrap">
           <label class="voice-toggle">
             <input type="checkbox" id="voice-toggle-input" />
@@ -19,25 +19,78 @@
           <span id="voice-status" class="voice-status">🔇 Voice off</span>
         </div>
         <a id="google-status" class="google-status" href="/auth/google" target="_blank" rel="noopener"></a>
-        <label for="model-select">Model</label>
+        <label for="model-select" class="sr-only">Model</label>
         <select id="model-select">
           <option value="">Loading models…</option>
         </select>
       </div>
     </header>
 
-    <main id="chat-log" class="chat-log" aria-live="polite"></main>
+    <main class="dashboard">
+      <aside class="side side-left">
+        <section class="widget widget-weather" id="weather-widget">
+          <div class="clock" id="clock"></div>
+          <div class="weather-body" id="weather-body">
+            <span class="widget-empty">Checking the sky…</span>
+          </div>
+          <button class="location-edit" id="location-edit" type="button">Set location</button>
+        </section>
 
-    <form id="chat-form" class="chat-form">
-      <textarea
-        id="chat-input"
-        placeholder="Message Nova…"
-        rows="1"
-        autofocus
-      ></textarea>
-      <button type="submit" id="send-btn">Send</button>
-    </form>
-    <p id="status-line" class="status-line"></p>
+        <section class="widget widget-schedule">
+          <div class="widget-head">
+            <h2>Today's Schedule</h2>
+            <button class="refresh" id="schedule-refresh" type="button" aria-label="Refresh schedule">⟳</button>
+          </div>
+          <ul class="widget-list" id="schedule-list">
+            <li class="widget-empty">Loading…</li>
+          </ul>
+        </section>
+      </aside>
+
+      <section class="stage">
+        <div class="greeting" id="greeting"></div>
+
+        <div class="orb-wrap">
+          <div class="orb" id="orb">
+            <div class="ring ring-1"></div>
+            <div class="ring ring-2"></div>
+            <div class="ring ring-3"></div>
+            <div class="core"></div>
+          </div>
+          <div class="orb-waves" id="orb-waves" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="orb-label" id="orb-label">Say "hey nova" to start</div>
+        </div>
+
+        <div class="live-transcript" id="live-transcript"></div>
+
+        <div id="chat-log" class="chat-log" aria-live="polite"></div>
+
+        <form id="chat-form" class="chat-form">
+          <textarea
+            id="chat-input"
+            placeholder="Message Nova…"
+            rows="1"
+            autofocus
+          ></textarea>
+          <button type="submit" id="send-btn">Send</button>
+        </form>
+        <p id="status-line" class="status-line"></p>
+      </section>
+
+      <aside class="side side-right">
+        <section class="widget widget-emails">
+          <div class="widget-head">
+            <h2>Important Emails</h2>
+            <button class="refresh" id="emails-refresh" type="button" aria-label="Refresh emails">⟳</button>
+          </div>
+          <ul class="widget-list" id="emails-list">
+            <li class="widget-empty">Loading…</li>
+          </ul>
+        </section>
+      </aside>
+    </main>
   </div>
 
   <script src="app.js"></script>
