@@ -146,14 +146,43 @@ Once connected, just ask Ellie things like "what's on my calendar tomorrow"
 or "email John the meeting notes" — she'll call the right tool
 automatically.
 
+## Weather
+
+Ellie can check real current weather via Google's Weather API (part of
+Google Maps Platform). Unlike Calendar/Gmail/Drive/Sheets, this one uses a
+plain API key, not the OAuth flow, and there's no "connect" step — it's
+live as soon as the key is in `.env`.
+
+**1. In [Google Cloud Console](https://console.cloud.google.com/)**, on the
+same project as your other credentials:
+
+- Enable **Geocoding API** and **Weather API** (location names need to be
+  resolved to coordinates first, which is what Geocoding API does).
+- Go to **APIs & Services → Credentials → Create Credentials → API key.**
+  This is a different kind of credential than the OAuth client you made
+  earlier — just a plain key, no consent screen involved.
+- Optionally click into the new key and restrict it to just those two APIs.
+
+**2. Add it to `.env`:**
+
+```
+GOOGLE_MAPS_API_KEY=your-api-key
+```
+
+Restart the app and ask something like "what's the weather in Salida,
+Colorado today" — she'll geocode the place name and pull live conditions.
+
 ## How it works
 
 - `server.js` — a small Express server that serves the frontend; proxies
   `/api/models` and `/api/chat` to Ollama (streaming responses back to the
-  browser, running any Google tool calls in between); proxies `/api/tts` to
-  ElevenLabs for voice playback; and handles the `/auth/google*` OAuth flow.
+  browser, running any tool calls from any connected provider in between);
+  proxies `/api/tts` to ElevenLabs for voice playback; and handles the
+  `/auth/google*` OAuth flow.
 - `google.js` — Google tool definitions and the code that executes them
   against the Calendar, Gmail, Drive, and Sheets APIs.
+- `weather.js` — the weather tool (Google Maps Platform Geocoding + Weather
+  APIs, API-key authenticated).
 - `public/` — a plain HTML/CSS/JS chat interface (no build step required).
 
 This is intentionally minimal so it's easy to extend — swap the frontend for

@@ -4,7 +4,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as googleTools from './google.js';
+import * as weatherTool from './weather.js';
 import { ensureAckClips } from './scripts/generate-ack-clips.js';
+
+// Registry of tool providers, each contributing TOOLS (Ollama function
+// definitions) and executeTool(name, args). Looked up by function name so
+// /api/chat can dispatch a call to whichever provider owns it.
+function getToolProviders() {
+  const providers = [];
+  if (googleTools.isConnected()) providers.push(googleTools);
+  if (weatherTool.isConfigured()) providers.push(weatherTool);
+  return providers;
+}
+
+function findToolProvider(providers, name) {
+  return providers.find((p) => p.TOOLS.some((t) => t.function.name === name));
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.join(__dirname, 'persona.md');
@@ -90,7 +105,8 @@ app.post('/api/chat', async (req, res) => {
     ? [{ role: 'system', content: systemPrompt }, ...messages]
     : messages;
 
-  const tools = googleTools.isConnected() ? googleTools.TOOLS : undefined;
+  const toolProviders = getToolProviders();
+  const tools = toolProviders.length ? toolProviders.flatMap((p) => p.TOOLS) : undefined;
 
   try {
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
@@ -125,7 +141,10 @@ app.post('/api/chat', async (req, res) => {
             typeof call.function.arguments === 'string'
               ? JSON.parse(call.function.arguments)
               : call.function.arguments || {};
-          result = await googleTools.executeTool(call.function.name, args);
+          const provider = findToolProvider(toolProviders, call.function.name);
+          result = provider
+            ? await provider.executeTool(call.function.name, args)
+            : { error: `Unknown tool: ${call.function.name}` };
         } catch (toolErr) {
           result = { error: toolErr.message };
         }
