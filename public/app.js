@@ -49,7 +49,7 @@ function setBusy(busy) {
 }
 
 // Resolves once playback actually finishes (not just once it starts), so
-// callers can safely do things like resume the mic only after Ellie is
+// callers can safely do things like resume the mic only after Nova is
 // done talking.
 async function speak(text) {
   try {

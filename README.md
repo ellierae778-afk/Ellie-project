@@ -1,4 +1,4 @@
-# Ellie
+# Nova
 
 A minimal chat UI for talking to a local [Ollama](https://ollama.com) model.
 
@@ -70,14 +70,14 @@ OLLAMA_HOST=http://localhost:11434 npm start
 ## Personality
 
 `persona.md` is sent to the model as a system prompt on every message, so
-Ellie's tone stays consistent no matter which model you're talking to. Edit
+Nova's tone stays consistent no matter which model you're talking to. Edit
 that file to change how she talks — no restart needed, it's re-read on every
 request. Delete it (or leave it empty) to talk to the model with no
 personality layer at all.
 
 ## Voice (ElevenLabs)
 
-Ellie can speak her responses out loud using [ElevenLabs](https://elevenlabs.io)
+Nova can speak her responses out loud using [ElevenLabs](https://elevenlabs.io)
 text-to-speech. Copy `.env.example` to `.env` and fill in:
 
 ```
@@ -92,13 +92,13 @@ just runs as a text-only chat.
 
 ### Hands-free mode ("hey nova")
 
-Flip the toggle in the header to go hands-free. While it's on, Ellie listens
+Flip the toggle in the header to go hands-free. While it's on, Nova listens
 continuously in the browser for the wake word **"hey nova"** — everything
 you say right after it is sent as your message. While it's off, nothing is
 listening and nothing is spoken automatically, no matter how a message was
 sent.
 
-The instant the wake word is heard, Ellie plays a short filler line ("one
+The instant the wake word is heard, Nova plays a short filler line ("one
 moment," "let me check," etc.) while the real response is generated — those
 are **pre-recorded once** via ElevenLabs (on first server start, or run
 `npm run generate-acks` to do it manually) and saved to
@@ -111,7 +111,7 @@ for microphone permission the first time you turn it on.
 
 ## Google tools (Calendar, Gmail, Drive, Sheets)
 
-Ellie can use your Google account as tools: check/create calendar events,
+Nova can use your Google account as tools: check/create calendar events,
 search and send Gmail, search/read Drive files, and read/write Google
 Sheets. This only works with models that support tool calling (e.g.
 `gpt-oss:*-cloud`, `llama3.1`, `qwen2.5`) — if the model doesn't support
@@ -139,16 +139,16 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/auth/google/callback
 **3. Connect your account:** start the app, then click **Connect Google** in
 the header (or visit http://localhost:3000/auth/google). Google will warn
 that the app is unverified since it's just yours — click through "Advanced
-→ Go to Ellie (unsafe)" to proceed. Tokens are saved to `google-token.json`
+→ Go to Nova (unsafe)" to proceed. Tokens are saved to `google-token.json`
 (gitignored, never committed).
 
-Once connected, just ask Ellie things like "what's on my calendar tomorrow"
+Once connected, just ask Nova things like "what's on my calendar tomorrow"
 or "email John the meeting notes" — she'll call the right tool
 automatically.
 
 ## Weather
 
-Ellie can check real current weather via Google's Weather API (part of
+Nova can check real current weather via Google's Weather API (part of
 Google Maps Platform). Unlike Calendar/Gmail/Drive/Sheets, this one uses a
 plain API key, not the OAuth flow, and there's no "connect" step — it's
 live as soon as the key is in `.env`.

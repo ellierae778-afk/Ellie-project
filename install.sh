@@ -44,4 +44,4 @@ echo "Node $(node --version), npm $(npm --version)"
 echo "Installing project dependencies…"
 npm install
 
-echo "Done. Run ./start.sh to launch Ellie."
+echo "Done. Run ./start.sh to launch Nova."

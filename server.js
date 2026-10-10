@@ -185,7 +185,7 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   try {
     await googleTools.handleOAuthCallback(req.query.code);
-    res.send('<p>Google connected. You can close this tab and go back to Ellie.</p>');
+    res.send('<p>Google connected. You can close this tab and go back to Nova.</p>');
   } catch (err) {
     res.status(500).send(`<p>Google auth failed: ${err.message}</p>`);
   }
@@ -242,7 +242,7 @@ app.post('/api/tts', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Ellie chat UI running at http://localhost:${PORT}`);
+  console.log(`Nova chat UI running at http://localhost:${PORT}`);
   console.log(`Proxying Ollama requests to ${OLLAMA_HOST}`);
 });
 

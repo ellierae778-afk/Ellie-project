@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Starts Ollama (if it isn't already running) and the Ellie chat UI,
+# Starts Ollama (if it isn't already running) and the Nova chat UI,
 # then opens it in your browser. Stop everything with Ctrl+C.
 set -euo pipefail
 

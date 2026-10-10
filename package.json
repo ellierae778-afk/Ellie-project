@@ -1,5 +1,5 @@
 {
-  "name": "ellie-project",
+  "name": "nova-project",
   "version": "0.1.0",
   "description": "A simple web UI for chatting with a local Ollama model",
   "type": "module",
