@@ -9,8 +9,10 @@ const voiceToggleInput = document.getElementById('voice-toggle-input');
 const voiceStatusEl = document.getElementById('voice-status');
 
 const orb = document.getElementById('orb');
+const orbCanvas = document.getElementById('orb-canvas');
 const orbWaves = document.getElementById('orb-waves');
 const orbLabel = document.getElementById('orb-label');
+const quickGrid = document.getElementById('quick-grid');
 const liveTranscriptEl = document.getElementById('live-transcript');
 const clockEl = document.getElementById('clock');
 const greetingEl = document.getElementById('greeting');
@@ -31,10 +33,83 @@ function setEmpty(el, text) {
   el.appendChild(span);
 }
 
-// --- Orb: the big animated state indicator on the stage ---
+// --- Orb: a canvas-drawn, Siri/HUD-style animated blob + rotating ring,
+// layered under the CSS state classes (which handle the instant glow/dim
+// cues) for a continuous, state-reactive animation.
+
+const orbCtx = orbCanvas.getContext('2d');
+const ORB_SIZE = 220;
+let orbAnimState = 'off';
+
+function setupOrbCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  orbCanvas.width = ORB_SIZE * dpr;
+  orbCanvas.height = ORB_SIZE * dpr;
+  orbCtx.scale(dpr, dpr);
+}
+setupOrbCanvas();
+
+// Each state: layered blob colors (drives the flowing core), rotation/
+// wobble speed, and how much the blob size swells.
+const ORB_PALETTES = {
+  off: { colors: ['#6a2f78', '#3a1744'], speed: 0.12, amp: 0.1 },
+  listening: { colors: ['#ff2d9e', '#b23bff', '#7a5cff'], speed: 0.55, amp: 0.4 },
+  thinking: { colors: ['#7a5cff', '#ff2d9e', '#4fd2ff'], speed: 1.7, amp: 0.3 },
+  speaking: { colors: ['#ff2d9e', '#ff7ad1', '#ffb84f'], speed: 1.15, amp: 0.8 },
+};
+
+function drawOrb(time) {
+  const palette = ORB_PALETTES[orbAnimState] || ORB_PALETTES.off;
+  const t = (time * 0.001 * palette.speed) || 0;
+  const cx = ORB_SIZE / 2;
+  const cy = ORB_SIZE / 2;
+  const baseRadius = ORB_SIZE * 0.17;
+
+  orbCtx.clearRect(0, 0, ORB_SIZE, ORB_SIZE);
+
+  // Flowing, overlapping blobs blended additively — the Siri-style core.
+  orbCtx.globalCompositeOperation = 'lighter';
+  const blobCount = palette.colors.length;
+  for (let i = 0; i < blobCount; i++) {
+    const phase = (i / blobCount) * Math.PI * 2;
+    const wobble = Math.sin(t * 1.3 + phase) * 0.5 + Math.cos(t * 0.8 + phase * 2) * 0.5;
+    const radius = baseRadius * (1 + palette.amp * 0.5 * wobble + palette.amp * 0.5);
+    const ox = Math.cos(t * 0.6 + phase) * baseRadius * 0.3;
+    const oy = Math.sin(t * 0.7 + phase * 1.4) * baseRadius * 0.3;
+
+    const gradient = orbCtx.createRadialGradient(cx + ox, cy + oy, 0, cx + ox, cy + oy, radius);
+    gradient.addColorStop(0, `${palette.colors[i]}cc`);
+    gradient.addColorStop(1, `${palette.colors[i]}00`);
+
+    orbCtx.fillStyle = gradient;
+    orbCtx.beginPath();
+    orbCtx.arc(cx + ox, cy + oy, Math.max(radius, 0), 0, Math.PI * 2);
+    orbCtx.fill();
+  }
+
+  // Rotating segmented HUD ring around the blob — the Jarvis touch.
+  orbCtx.globalCompositeOperation = 'source-over';
+  const ringRadius = baseRadius * 1.9;
+  const segments = 32;
+  const rotation = t * 0.5;
+  orbCtx.lineWidth = 1.2;
+  for (let i = 0; i < segments; i++) {
+    const a0 = rotation + (i / segments) * Math.PI * 2;
+    const len = ((1 / segments) * Math.PI * 2) * 0.5;
+    const alpha = Math.max(0, 0.18 + 0.16 * Math.sin(i * 0.7 + t * 2));
+    orbCtx.strokeStyle = `rgba(255, 130, 210, ${alpha})`;
+    orbCtx.beginPath();
+    orbCtx.arc(cx, cy, ringRadius, a0, a0 + len);
+    orbCtx.stroke();
+  }
+
+  requestAnimationFrame(drawOrb);
+}
+requestAnimationFrame(drawOrb);
 
 function setOrbState(state, label) {
   orb.className = `orb state-${state}`;
+  orbAnimState = state;
   if (state === 'listening' || state === 'speaking') {
     orbWaves.classList.add('active');
     orbWaves.classList.toggle('fast', state === 'speaking');
@@ -600,6 +675,49 @@ function wireRefresh(button, loader) {
 wireRefresh(scheduleRefreshBtn, loadSchedule);
 wireRefresh(emailsRefreshBtn, loadEmails);
 
+// --- Connected APIs tiles ---
+// A dedicated spot per integration, so each new API we wire up later just
+// needs a tile added here rather than being lumped into one status badge.
+
+quickGrid.querySelectorAll('.quick-tile[data-kind="google"]').forEach((tile) => {
+  tile.addEventListener('click', () => {
+    if (!tile.classList.contains('ready')) {
+      window.open('/auth/google', '_blank', 'noopener');
+    }
+  });
+});
+
+async function loadIntegrationsStatus() {
+  try {
+    const res = await fetch('/api/integrations/status');
+    const data = await res.json();
+
+    const googleReady = Boolean(data.google?.connected);
+    quickGrid.querySelectorAll('[data-kind="google"]').forEach((tile) => {
+      tile.classList.toggle('ready', googleReady);
+      tile.title = googleReady
+        ? 'Connected'
+        : data.google?.configured
+          ? 'Click to connect your Google account'
+          : 'Not set up yet — see README for setup steps';
+    });
+
+    const weatherTile = quickGrid.querySelector('[data-service="weather"]');
+    weatherTile.classList.toggle('ready', Boolean(data.weather?.configured));
+    weatherTile.title = data.weather?.configured
+      ? 'Connected'
+      : 'Not set up yet — add GOOGLE_MAPS_API_KEY to .env';
+
+    const voiceTile = quickGrid.querySelector('[data-service="voice"]');
+    voiceTile.classList.toggle('ready', Boolean(data.voice?.configured));
+    voiceTile.title = data.voice?.configured
+      ? 'Connected'
+      : 'Not set up yet — add ELEVENLABS_API_KEY and ELEVENLABS_VOICE_ID to .env';
+  } catch {
+    // Leave tiles in their default (not-ready) state.
+  }
+}
+
 updateClock();
 setInterval(updateClock, 15000);
 updateGreeting();
@@ -610,9 +728,11 @@ loadGoogleStatus();
 loadWeather();
 loadSchedule();
 loadEmails();
+loadIntegrationsStatus();
 
 window.addEventListener('focus', () => {
   loadGoogleStatus();
   loadSchedule();
   loadEmails();
+  loadIntegrationsStatus();
 });

@@ -313,6 +313,69 @@ body {
   font-size: 0.82rem;
 }
 
+/* ---------- Connected APIs (quick-access tiles) ---------- */
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+}
+
+.quick-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.6rem 0.3rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  cursor: default;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.quick-tile[data-kind='google'] {
+  cursor: pointer;
+}
+
+.quick-tile:hover {
+  border-color: var(--border-bright);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.quick-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  filter: grayscale(1) opacity(0.6);
+  transition: filter 0.2s;
+}
+
+.quick-tile.ready .quick-icon {
+  filter: grayscale(0) opacity(1);
+}
+
+.quick-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.quick-dot {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #5a5560;
+}
+
+.quick-tile.ready .quick-dot {
+  background: #4ade80;
+  box-shadow: 0 0 6px #4ade8099;
+}
+
 /* ---------- Weather widget ---------- */
 
 .widget-weather {
@@ -385,104 +448,32 @@ body {
 
 .orb {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 220px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
+  filter: drop-shadow(0 0 36px rgba(255, 45, 158, 0.35));
+  transition: filter 0.4s ease;
 }
 
-.orb .ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 1.5px solid transparent;
-  border-top-color: var(--accent);
-  border-right-color: var(--accent-2);
+.orb canvas {
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.4s ease, filter 0.4s ease;
+}
+
+.orb.state-off {
+  filter: drop-shadow(0 0 16px rgba(255, 45, 158, 0.18));
+}
+
+.orb.state-off canvas {
   opacity: 0.55;
-  animation: orb-spin 7s linear infinite;
-}
-
-.orb .ring-2 {
-  inset: 16px;
-  animation-duration: 5s;
-  animation-direction: reverse;
-  border-top-color: var(--accent-2);
-  border-right-color: var(--accent);
-}
-
-.orb .ring-3 {
-  inset: 32px;
-  animation-duration: 3.5s;
-}
-
-.orb .core {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff, var(--accent-2) 35%, var(--accent) 75%);
-  box-shadow: 0 0 30px 6px var(--accent-glow);
-  animation: orb-pulse 3.2s ease-in-out infinite;
-}
-
-@keyframes orb-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes orb-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    box-shadow: 0 0 24px 4px var(--accent-glow);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow: 0 0 40px 10px var(--accent-glow);
-  }
-}
-
-/* State modifiers */
-
-.orb.state-off .ring {
-  animation-play-state: paused;
-  opacity: 0.2;
-}
-
-.orb.state-off .core {
-  animation: none;
-  box-shadow: 0 0 14px 2px rgba(255, 45, 158, 0.25);
   filter: saturate(0.5);
 }
 
-.orb.state-listening .ring {
-  animation-duration: 4s;
-}
-
-.orb.state-listening .core {
-  animation-duration: 1.6s;
-}
-
-.orb.state-thinking .ring {
-  animation-duration: 1.4s;
-}
-
-.orb.state-thinking .ring-2 {
-  animation-duration: 1s;
-}
-
-.orb.state-thinking .core {
-  animation: orb-pulse 0.7s ease-in-out infinite;
-}
-
-.orb.state-speaking .core {
-  animation-duration: 0.5s;
-  box-shadow: 0 0 46px 12px var(--accent-glow);
-}
-
-.orb.state-speaking .ring {
-  animation-duration: 2s;
+.orb.state-speaking {
+  filter: drop-shadow(0 0 54px rgba(255, 45, 158, 0.55));
 }
 
 /* Waveform under the orb, visible while listening/speaking */

@@ -174,6 +174,17 @@ app.get('/api/google/status', (req, res) => {
   res.json({ configured: googleTools.isConfigured(), connected: googleTools.isConnected() });
 });
 
+// Combined status for the "Connected APIs" tiles — one call covers every
+// integration we have a tile for, so adding a new API later just means
+// adding a key here and a tile in the frontend.
+app.get('/api/integrations/status', (req, res) => {
+  res.json({
+    google: { configured: googleTools.isConfigured(), connected: googleTools.isConnected() },
+    weather: { configured: weatherTool.isConfigured() },
+    voice: { configured: Boolean(ELEVENLABS_API_KEY && ELEVENLABS_VOICE_ID) },
+  });
+});
+
 app.get('/auth/google', (req, res) => {
   try {
     res.redirect(googleTools.getAuthUrl());

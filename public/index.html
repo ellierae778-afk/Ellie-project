@@ -52,10 +52,7 @@
 
         <div class="orb-wrap">
           <div class="orb" id="orb">
-            <div class="ring ring-1"></div>
-            <div class="ring ring-2"></div>
-            <div class="ring ring-3"></div>
-            <div class="core"></div>
+            <canvas id="orb-canvas" aria-hidden="true"></canvas>
           </div>
           <div class="orb-waves" id="orb-waves" aria-hidden="true">
             <span></span><span></span><span></span><span></span><span></span>
@@ -88,6 +85,44 @@
           <ul class="widget-list" id="emails-list">
             <li class="widget-empty">Loading…</li>
           </ul>
+        </section>
+
+        <section class="widget widget-integrations">
+          <div class="widget-head">
+            <h2>Connected APIs</h2>
+          </div>
+          <div class="quick-grid" id="quick-grid">
+            <div class="quick-tile" data-service="calendar" data-kind="google">
+              <span class="quick-icon">📅</span>
+              <span class="quick-label">Calendar</span>
+              <span class="quick-dot"></span>
+            </div>
+            <div class="quick-tile" data-service="gmail" data-kind="google">
+              <span class="quick-icon">✉️</span>
+              <span class="quick-label">Gmail</span>
+              <span class="quick-dot"></span>
+            </div>
+            <div class="quick-tile" data-service="drive" data-kind="google">
+              <span class="quick-icon">🗂️</span>
+              <span class="quick-label">Drive</span>
+              <span class="quick-dot"></span>
+            </div>
+            <div class="quick-tile" data-service="sheets" data-kind="google">
+              <span class="quick-icon">📊</span>
+              <span class="quick-label">Sheets</span>
+              <span class="quick-dot"></span>
+            </div>
+            <div class="quick-tile" data-service="weather" data-kind="weather">
+              <span class="quick-icon">☁️</span>
+              <span class="quick-label">Weather</span>
+              <span class="quick-dot"></span>
+            </div>
+            <div class="quick-tile" data-service="voice" data-kind="voice">
+              <span class="quick-icon">🔊</span>
+              <span class="quick-label">Voice</span>
+              <span class="quick-dot"></span>
+            </div>
+          </div>
         </section>
       </aside>
     </main>
