@@ -2,3 +2,4 @@ node_modules/
 .env
 *.log
 google-token.json
+public/audio/acks/

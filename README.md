@@ -90,6 +90,25 @@ assistant reply is automatically sent to `/api/tts` and played in the
 browser once the text finishes streaming in. Leave them unset and the app
 just runs as a text-only chat.
 
+### Hands-free mode ("hey nova")
+
+Flip the toggle in the header to go hands-free. While it's on, Ellie listens
+continuously in the browser for the wake word **"hey nova"** — everything
+you say right after it is sent as your message. While it's off, nothing is
+listening and nothing is spoken automatically, no matter how a message was
+sent.
+
+The instant the wake word is heard, Ellie plays a short filler line ("one
+moment," "let me check," etc.) while the real response is generated — those
+are **pre-recorded once** via ElevenLabs (on first server start, or run
+`npm run generate-acks` to do it manually) and saved to
+`public/audio/acks/`, so saying the wake word never costs an API call by
+itself. Only the actual response text goes through `/api/tts` each time.
+
+Wake-word listening uses the browser's built-in Speech Recognition API, so
+it needs Chrome, Edge, or Safari (Firefox doesn't support it) and will ask
+for microphone permission the first time you turn it on.
+
 ## Google tools (Calendar, Gmail, Drive, Sheets)
 
 Ellie can use your Google account as tools: check/create calendar events,

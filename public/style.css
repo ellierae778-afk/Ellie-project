@@ -52,6 +52,63 @@ body {
   color: var(--text-dim);
 }
 
+.voice-toggle-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.voice-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.voice-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.voice-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  transition: 0.15s;
+  border-radius: 999px;
+}
+
+.voice-toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 14px;
+  width: 14px;
+  left: 2px;
+  top: 2px;
+  background: var(--text-dim);
+  transition: 0.15s;
+  border-radius: 50%;
+}
+
+.voice-toggle input:checked + .voice-toggle-slider {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.voice-toggle input:checked + .voice-toggle-slider::before {
+  transform: translateX(16px);
+  background: white;
+}
+
+.voice-status {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
 .google-status {
   text-decoration: none;
   padding: 0.25rem 0.6rem;

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as googleTools from './google.js';
+import { ensureAckClips } from './scripts/generate-ack-clips.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PERSONA_PATH = path.join(__dirname, 'persona.md');
@@ -224,4 +225,8 @@ app.post('/api/tts', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Ellie chat UI running at http://localhost:${PORT}`);
   console.log(`Proxying Ollama requests to ${OLLAMA_HOST}`);
+});
+
+ensureAckClips().catch((err) => {
+  console.warn(`Could not generate wake-word acknowledgment clips: ${err.message}`);
 });
